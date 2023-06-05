@@ -1,6 +1,7 @@
 package app
 
 import (
+	openapi "baidupan-cli/openxpanapi"
 	"github.com/desertbit/grumble"
 	"github.com/fatih/color"
 )
@@ -21,6 +22,7 @@ var App = grumble.New(&grumble.Config{
 		f.String("c", "config", "./config.yaml", "设置系统配置文件")
 	},
 })
+var ApiClient *openapi.APIClient
 
 func init() {
 	// 程序执行第一个命令前执行此函数，用于加载配置文件
@@ -32,6 +34,9 @@ func init() {
 			return nil
 		}
 	})
+
+	// 创建 api client
+	ApiClient = openapi.NewAPIClient(openapi.NewConfiguration())
 
 	// 打印
 	App.SetPrintASCIILogo(func(a *grumble.App) {
