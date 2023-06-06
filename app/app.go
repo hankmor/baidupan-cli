@@ -11,7 +11,7 @@ const version = "0.1.0"
 var Conf *Config
 var App = grumble.New(&grumble.Config{
 	Name:                  "baidupan-cli",
-	Description:           "百度网盘命令行工具",
+	Description:           "baidu network disk command line tool",
 	Prompt:                "cli » ",
 	PromptColor:           color.New(color.FgGreen, color.Bold),
 	HelpHeadlineColor:     color.New(color.FgGreen),
@@ -19,7 +19,7 @@ var App = grumble.New(&grumble.Config{
 	HelpSubCommands:       true,
 
 	Flags: func(f *grumble.Flags) {
-		f.String("c", "config", "./config.yaml", "设置系统配置文件")
+		f.String("c", "config", "./config.yaml", "set system config file")
 	},
 })
 var ApiClient *openapi.APIClient

@@ -37,13 +37,10 @@ var loginCmd = &grumble.Command{
 		AuthResp = &authResp
 		fmt.Println("scan qrcode to authorize cli to visit your baidupan:")
 		util.PrintQrCode2Console(*authResp.QrcodeUrl)
+
 		var interval = authResp.Interval
 		var expireIn = authResp.ExpiresIn
 		var deadline = time.Now().Add(time.Second * time.Duration(*expireIn-5)) // 5秒的冗余时间
-
-		// fmt.Println(*interval, *expireIn)
-		// fmt.Println(*authResp.DeviceCode)
-		// fmt.Println(app.Conf.BaiduPan)
 
 		// 轮询获取 accesstoken
 		fmt.Println()
