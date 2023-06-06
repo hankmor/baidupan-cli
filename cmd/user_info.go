@@ -6,12 +6,16 @@ import (
 	"github.com/desertbit/grumble"
 )
 
+// =============================================
+// 用户信息查询
+// =============================================
+
 var userInfoCmd = &grumble.Command{
 	Name:     "userinfo",
 	Help:     "show user info",
 	LongHelp: "show user info of your baidupan account",
 	Run: func(c *grumble.Context) error {
-		if err := checkAuthorized(); err != nil {
+		if err := checkAuthorized(c); err != nil {
 			return err
 		}
 		req := app.ApiClient.UserinfoApi.Xpannasuinfo(RootContext)
@@ -20,8 +24,4 @@ var userInfoCmd = &grumble.Command{
 		fmt.Println(string(b))
 		return err
 	},
-}
-
-func init() {
-	app.RegisterCommand(userInfoCmd)
 }

@@ -20,6 +20,8 @@ var App = grumble.New(&grumble.Config{
 
 	Flags: func(f *grumble.Flags) {
 		f.String("c", "config", "./config.yaml", "set system config file")
+		// TODO remove
+		f.Bool("t", "test", true, "use test mode")
 	},
 })
 var ApiClient *openapi.APIClient

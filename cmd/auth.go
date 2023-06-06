@@ -11,11 +11,15 @@ import (
 	"time"
 )
 
+// =============================================
+// 网盘访问授权
+// =============================================
+
 var AuthResp *openapi.OauthTokenDeviceCodeResponse
 var TokenResp *openapi.OauthTokenDeviceTokenResponse
 var TokenDeadline time.Time
 var RootContext = context.Background()
-var loginCmd = &grumble.Command{
+var authCmd = &grumble.Command{
 	Name:     "auth",
 	Help:     "authorize cli to visit your baidupan account",
 	LongHelp: "scan the given qrcode to authorize cli to visit your baidupan account",
@@ -72,15 +76,11 @@ var loginCmd = &grumble.Command{
 			}
 		}
 		close(closeSpin)
-		fmt.Println("\nauthorize success")
+		fmt.Println("\nauthorize success!")
 		TokenDeadline = time.Now().Add(time.Second * time.Duration(*TokenResp.ExpiresIn))
 		runRefreshToken()
 		return e
 	},
-}
-
-func init() {
-	app.RegisterCommand(loginCmd)
 }
 
 func runRefreshToken() {
