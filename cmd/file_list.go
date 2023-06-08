@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"baidupan-cli/app"
-	"baidupan-cli/cmd/vo"
-	"baidupan-cli/util"
-	"encoding/json"
+	openapi "baidupan-cli/openxpanapi"
+	"context"
 	"fmt"
+	"github.com/bytedance/sonic"
 	"github.com/desertbit/grumble"
+	"github.com/hankmor/gotools/conv"
+	"github.com/liushuochen/gotable"
+	"strings"
 )
 
 // =============================================
@@ -17,6 +20,9 @@ const (
 	orderByTime = "time"
 	orderByName = "name"
 	orderBySize = "size"
+
+	Yes = "Y"
+	No  = "N"
 )
 
 var fileListCmd = &grumble.Command{
@@ -30,55 +36,365 @@ var fileListCmd = &grumble.Command{
 				1. time: sort files by file type first, then sort by modification time
 				2. name: sort files by file type first, then sort by file name
 				3. size: sort files by file type first, then sort by file size`)
-		f.Bool("a", "asc", true, "whether to sort in ascending order")
-		f.Bool("f", "only-folder", false, "whether only to query folders")
-		f.Bool("e", "show-empty", false, "whether to show empty folder info")
+		f.Bool("r", "recurse", false, "whether to list files recursively")
+		f.Bool("D", "desc", false, "whether to sort in descending order")
+		f.BoolL("only-folder", false, "whether only to query folders, so files will be filtered")
+		f.BoolL("only-files", false, "whether only to query files, so folders will be filtered")
+		f.BoolL("show-empty", false, "whether to show empty folder info, ONLY SUPPORT when `recurse` is false")
 		f.Int("l", "limit", 1000, "the number of queries, default is 1000, and it is recommended that the maximum number not exceed 1000")
-		f.Bool("v", "verbose", false, "show verbose info of files")
+		// f.Bool("H", "human-readable", false, "whether to show files info as human-readable")
+		f.Bool("v", "verbose", false, "whether to show verbose info of files")
+		// f.StringL("create-time", "", "creation time to filter, when the creation time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
+		// f.StringL("update-time", "", "update time to filter, when the modification time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
 	},
 	Run: func(ctx *grumble.Context) error {
 		if err := checkAuthorized(ctx); err != nil {
 			return err
 		}
+
+		var options = NewFileListOptions()
+		verbose := ctx.Flags.Bool("verbose")
 		dir := ctx.Flags.String("dir")
-		order := ctx.Flags.String("order")
-		asc := ctx.Flags.Bool("asc")
-		onlyFolder := ctx.Flags.Bool("only-folder")
-		showEmpty := ctx.Flags.Bool("show-empty")
+		recurse := ctx.Flags.Bool("recurse")
+		desc := ctx.Flags.Bool("desc")
+		if desc {
+			options.Desc()
+		}
 		limit := ctx.Flags.Int("limit")
 		if limit <= 0 {
 			return fmt.Errorf("invalid parameter: limit must be great than 0, but found %d", limit)
 		}
+		options.Limit(int32(limit))
+		order := ctx.Flags.String("order")
 		switch order {
 		case orderByTime:
+			options.OrderByTime()
 		case orderByName:
+			options.OrderByName()
 		case orderBySize:
+			options.OrderBySize()
 		default:
 			return fmt.Errorf("invalid parameter: unsupported order type %s", order)
 		}
-		req := app.ApiClient.FileinfoApi.Xpanfilelist(RootContext)
-		if !asc {
-			req = req.Desc(1)
+		onlyFolder := ctx.Flags.Bool("only-folder")
+		onlyFiles := ctx.Flags.Bool("only-files")
+		if onlyFolder && onlyFiles {
+			return fmt.Errorf("both giving \"only-folder\" and \"only-files\" tags are ambiguous and not allowed")
 		}
 		if onlyFolder {
-			req = req.Folder("1")
+			options.OnlyDir()
 		}
+		if onlyFiles {
+			options.OnlyFiles()
+		}
+		showEmpty := ctx.Flags.Bool("show-empty")
 		if showEmpty {
-			req = req.Showempty(1)
-		}
-		resp, _, err := req.Limit(int32(limit)).Dir(dir).Order(order).AccessToken(*TokenResp.AccessToken).Execute()
-		if err != nil {
-			return err
+			options.ShowEmpty()
 		}
 
-		var fileListResp vo.FileListResp
-		err = json.Unmarshal([]byte(resp), &fileListResp)
+		var fileLister FileLister
+		if recurse {
+			fileLister = &RecursionFileLister{}
+		} else {
+			fileLister = &SimpleFileLister{}
+		}
+		files, err := fileLister.List(dir, *options)
 		if err != nil {
 			return err
 		}
-		for _, f := range fileListResp.Files {
-			fmt.Println(util.Decode2Chinese(f.Path))
-		}
-		return err
+		return fileLister.Print(files, FilePrinterOption{Verbose: verbose})
 	},
 }
+
+// 打印输出
+
+type FilePrinterOption struct {
+	Verbose bool
+}
+
+type FileListPrinter interface {
+	Print(files []*File, options FilePrinterOption) error
+}
+
+// 查询目录下的文件列表
+
+type FileListResp struct {
+	BaseVo
+	GuidInfo  string  `json:"guid_info,omitempty"`
+	RequestId uint64  `json:"request_id,omitempty"`
+	Guid      int     `json:"guid,omitempty"`
+	Files     []*File `json:"list,omitempty"`
+}
+
+type File struct {
+	FsId           uint64            `json:"fs_id,omitempty"`           // 文件在云端的唯一标识ID
+	Path           string            `json:"path,omitempty"`            // 文件的绝对路径
+	ServerFilename string            `json:"server_filename,omitempty"` // 文件名称
+	Size           uint              `json:"size,omitempty"`            // 文件大小，单位B
+	ServerMtime    uint              `json:"server_mtime,omitempty"`    // 文件在服务器修改时间
+	ServerCtime    uint              `json:"server_ctime,omitempty"`    // 文件在服务器创建时间
+	LocalMtime     uint              `json:"local_mtime,omitempty"`     // 文件在客户端修改时间
+	LocalCtime     uint              `json:"local_ctime,omitempty"`     // 文件在客户端创建时间
+	IsDir          uint              `json:"isdir,omitempty"`           // 是否为目录，0 文件、1 目录
+	Category       uint              `json:"category,omitempty"`        // 文件类型，1 视频、2 音频、3 图片、4 文档、5 应用、6 其他、7 种子
+	Md5            string            `json:"md5,omitempty"`             // 云端哈希（非文件真实MD5），只有是文件类型时，该字段才存在
+	DirEmpty       int               `json:"dir_empty,omitempty"`       // 该目录是否存在子目录，只有请求参数web=1且该条目为目录时，该字段才存在， 0为存在， 1为不存在
+	Thumbs         map[string]string `json:"thumbs,omitempty"`          // 缩略图地址
+}
+
+type FileLister interface {
+	FileListPrinter
+	List(path string, options FileListOptions) ([]*File, error)
+}
+
+type SimpleFileLister struct {
+}
+
+func (sfl *SimpleFileLister) List(Path string, options FileListOptions) ([]*File, error) {
+	req := app.ApiClient.FileinfoApi.Xpanfilelist(RootContext)
+	reqptr := &req
+
+	sfl.applyOptions(reqptr, options)
+
+	resp, _, err := reqptr.Dir(Path).AccessToken(*TokenResp.AccessToken).Execute()
+	if err != nil {
+		return nil, err
+	}
+
+	var fileListResp FileListResp
+	err = sonic.UnmarshalString(resp, &fileListResp)
+	if err != nil {
+		return nil, err
+	}
+	if fileListResp.Success() {
+		// 只显示文件
+		if options.onlyFile {
+			var fs []*File
+			for _, f := range fileListResp.Files {
+				if f.IsDir == 0 {
+					fs = append(fs, f)
+				}
+			}
+			return fs, nil
+		}
+		return fileListResp.Files, nil
+	}
+	return nil, fmt.Errorf("error code: %d", fileListResp.Errno)
+}
+
+func (sfl *SimpleFileLister) applyOptions(req *openapi.ApiXpanfilelistRequest, options FileListOptions) {
+	if options.desc {
+		req.Desc(1) // 降序排序
+	}
+	if options.order != "" {
+		req.Order(options.order) // 排序属性
+	}
+	if options.onlyDir {
+		req.Folder("1") // 只显示文件夹
+	}
+	if options.showEmpty {
+		req.Showempty(1) // 显示空文件夹信息
+	}
+	if options.limit > 0 {
+		req.Limit(options.limit) // 文件数量限制
+	}
+}
+
+func (sfl *SimpleFileLister) Print(files []*File, options FilePrinterOption) error {
+	// 表格输出详细信息
+	if options.Verbose {
+		table, err := gotable.Create("FsId", "Path", "Name", "Dir", "MD5", "Size")
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), f.Md5, conv.Int64ToStr(int64(f.Size))})
+		}
+		fmt.Println(table)
+	} else {
+		for _, f := range files {
+			fmt.Println(f.ServerFilename)
+		}
+	}
+	return nil
+}
+
+// 递归查询文件列表
+
+type RecursionFileResp struct {
+	BaseVo
+	RequestId string  `json:"request_id,omitempty"`
+	HasMore   int     `json:"has_more"` // 是否还有下一页，0表示无，1表示有
+	Cursor    int     `json:"cursor"`   // 当还有下一页时，为下一次查询的起点
+	Files     []*File `json:"list"`     // 文件列表
+}
+
+type RecursionFileLister struct {
+}
+
+func (rfl *RecursionFileLister) List(Path string, options FileListOptions) ([]*File, error) {
+	req := app.ApiClient.MultimediafileApi.Xpanfilelistall(context.Background())
+	reqptr := &req
+
+	rfl.applyOptions(reqptr, options)
+
+	resp, _, err := reqptr.Path(Path).Recursion(1).AccessToken(*TokenResp.AccessToken).Execute()
+	if err != nil {
+		return nil, err
+	}
+
+	var recursionFileResp RecursionFileResp
+	err = sonic.UnmarshalString(resp, &recursionFileResp)
+	if err != nil {
+		return nil, err
+	}
+	if recursionFileResp.Success() {
+		// 进显示文件夹
+		if options.onlyDir {
+			var fs []*File
+			for _, f := range recursionFileResp.Files {
+				if f.IsDir == 1 {
+					fs = append(fs, f)
+				}
+			}
+			return fs, nil
+		} else if options.onlyFile {
+			var fs []*File
+			for _, f := range recursionFileResp.Files {
+				if f.IsDir == 0 {
+					fs = append(fs, f)
+				}
+			}
+			return fs, nil
+		}
+		return recursionFileResp.Files, nil
+	}
+	return nil, fmt.Errorf("error code: %d", recursionFileResp.Errno)
+}
+
+func (rfl *RecursionFileLister) applyOptions(req *openapi.ApiXpanfilelistallRequest, options FileListOptions) {
+	if options.desc {
+		req.Desc(1)
+	}
+	if options.order != "" {
+		req.Order(options.order)
+	}
+	if options.limit > 0 {
+		req.Limit(options.limit)
+	}
+}
+
+func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) error {
+	// 表格输出详细信息
+	if options.Verbose {
+		table, err := gotable.Create("FsId", "Path", "Name", "Dir", "Category", "MD5", "Size", "Local CTime", "Local MTime", "Server CTime", "Server MTime")
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, conv.Int64ToStr(int64(f.Size)),
+				conv.Int64ToStr(int64(f.LocalCtime)), conv.Int64ToStr(int64(f.LocalMtime)), conv.Int64ToStr(int64(f.ServerCtime)), conv.Int64ToStr(int64(f.ServerMtime))})
+		}
+		fmt.Println(table)
+	} else {
+		for _, f := range files {
+			fmt.Println(f.ServerFilename)
+		}
+	}
+	return nil
+}
+
+func getDirLabel(i int) string {
+	if i == 1 {
+		return Yes
+	}
+	return No
+}
+
+func getCategoryLabel(i int) string {
+	switch i {
+	case 1:
+		return "视频"
+	case 2:
+		return "音乐"
+	case 3:
+		return "图片"
+	case 4:
+		return "文档"
+	case 5:
+		return "应用"
+	case 6:
+		return "其他"
+	case 7:
+		return "种子"
+	default:
+		return "unknown"
+	}
+}
+
+// 选项
+
+type FileListOptions struct {
+	desc      bool
+	order     string
+	limit     int32
+	onlyDir   bool
+	onlyFile  bool
+	showEmpty bool
+	// createTime string
+	// updateTime string
+}
+
+func NewFileListOptions() *FileListOptions {
+	return &FileListOptions{}
+}
+
+func (options *FileListOptions) Desc() *FileListOptions {
+	options.desc = true
+	return options
+}
+
+func (options *FileListOptions) OrderByTime() *FileListOptions {
+	options.order = orderByTime
+	return options
+}
+
+func (options *FileListOptions) OrderByName() *FileListOptions {
+	options.order = orderByName
+	return options
+}
+
+func (options *FileListOptions) OrderBySize() *FileListOptions {
+	options.order = orderBySize
+	return options
+}
+
+func (options *FileListOptions) Limit(limit int32) *FileListOptions {
+	options.limit = limit
+	return options
+}
+
+func (options *FileListOptions) OnlyDir() *FileListOptions {
+	options.onlyDir = true
+	return options
+}
+
+func (options *FileListOptions) OnlyFiles() *FileListOptions {
+	options.onlyFile = true
+	return options
+}
+
+func (options *FileListOptions) ShowEmpty() *FileListOptions {
+	options.showEmpty = true
+	return options
+}
+
+// func (options *FileListOptions) CreateTimeFrom(ctime string) *FileListOptions {
+// 	options.createTime = ctime
+// 	return options
+// }
+//
+// func (options *FileListOptions) UpdateTimeFrom(mtime string) *FileListOptions {
+// 	options.updateTime = mtime
+// 	return options
+// }
