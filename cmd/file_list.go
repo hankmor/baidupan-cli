@@ -3,6 +3,7 @@ package cmd
 import (
 	"baidupan-cli/app"
 	openapi "baidupan-cli/openxpanapi"
+	"baidupan-cli/util"
 	"context"
 	"fmt"
 	"github.com/bytedance/sonic"
@@ -42,8 +43,9 @@ var fileListCmd = &grumble.Command{
 		f.BoolL("only-files", false, "whether only to query files, so folders will be filtered")
 		f.BoolL("show-empty", false, "whether to show empty folder info, ONLY SUPPORT when `recurse` is false")
 		f.Int("l", "limit", 1000, "the number of queries, default is 1000, and it is recommended that the maximum number not exceed 1000")
-		// f.Bool("H", "human-readable", false, "whether to show files info as human-readable")
 		f.Bool("v", "verbose", false, "whether to show verbose info of files")
+		f.Bool("H", "human-readable", false, "whether to show files info as human-readable")
+		f.Bool("g", "show-form", false, "whether to show files info as form, ONLY SUPPORT when `verbose` is true")
 		// f.StringL("create-time", "", "creation time to filter, when the creation time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
 		// f.StringL("update-time", "", "update time to filter, when the modification time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
 	},
@@ -54,9 +56,11 @@ var fileListCmd = &grumble.Command{
 
 		var options = NewFileListOptions()
 		verbose := ctx.Flags.Bool("verbose")
+		showForm := ctx.Flags.Bool("show-form")
 		dir := ctx.Flags.String("dir")
 		recurse := ctx.Flags.Bool("recurse")
 		desc := ctx.Flags.Bool("desc")
+		humanReadable := ctx.Flags.Bool("human-readable")
 		if desc {
 			options.Desc()
 		}
@@ -102,14 +106,16 @@ var fileListCmd = &grumble.Command{
 		if err != nil {
 			return err
 		}
-		return fileLister.Print(files, FilePrinterOption{Verbose: verbose})
+		return fileLister.Print(files, FilePrinterOption{Verbose: verbose, HumanReadable: humanReadable, ShowForm: showForm})
 	},
 }
 
 // 打印输出
 
 type FilePrinterOption struct {
-	Verbose bool
+	Verbose       bool
+	HumanReadable bool
+	ShowForm      bool
 }
 
 type FileListPrinter interface {
@@ -203,14 +209,47 @@ func (sfl *SimpleFileLister) applyOptions(req *openapi.ApiXpanfilelistRequest, o
 func (sfl *SimpleFileLister) Print(files []*File, options FilePrinterOption) error {
 	// 表格输出详细信息
 	if options.Verbose {
-		table, err := gotable.Create("FsId", "Path", "Name", "Dir", "MD5", "Size")
-		if err != nil {
-			return err
+		if options.ShowForm {
+			table, err := gotable.Create("NAME", "VALUE")
+			if err != nil {
+				return err
+			}
+			var sizestr string
+			var i int
+			for _, f := range files {
+				if options.HumanReadable {
+					sizestr = util.ConvTimestamp(int64(f.Size))
+				} else {
+					sizestr = conv.Int64ToStr(int64(f.Size))
+				}
+				_ = table.AddRow([]string{"FsId", conv.Int64ToStr(int64(f.FsId))})
+				_ = table.AddRow([]string{"Path", strings.TrimRight(f.Path, f.ServerFilename)})
+				_ = table.AddRow([]string{"Name", f.ServerFilename})
+				_ = table.AddRow([]string{"Dir", getDirLabel(int(f.IsDir))})
+				_ = table.AddRow([]string{"Md5", f.Md5})
+				_ = table.AddRow([]string{"Size", sizestr})
+				if i < len(files)-1 {
+					_ = table.AddRow([]string{"-", "-"})
+				}
+				i++
+			}
+			fmt.Println(table)
+		} else {
+			table, err := gotable.Create("FsId", "Path", "Name", "Dir", "MD5", "Size")
+			if err != nil {
+				return err
+			}
+			var sizestr string
+			for _, f := range files {
+				if options.HumanReadable {
+					sizestr = util.ConvTimestamp(int64(f.Size))
+				} else {
+					sizestr = conv.Int64ToStr(int64(f.Size))
+				}
+				_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), f.Md5, sizestr})
+			}
+			fmt.Println(table)
 		}
-		for _, f := range files {
-			_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), f.Md5, conv.Int64ToStr(int64(f.Size))})
-		}
-		fmt.Println(table)
 	} else {
 		for _, f := range files {
 			fmt.Println(f.ServerFilename)
@@ -287,15 +326,68 @@ func (rfl *RecursionFileLister) applyOptions(req *openapi.ApiXpanfilelistallRequ
 func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) error {
 	// 表格输出详细信息
 	if options.Verbose {
-		table, err := gotable.Create("FsId", "Path", "Name", "Dir", "Category", "MD5", "Size", "Local CTime", "Local MTime", "Server CTime", "Server MTime")
-		if err != nil {
-			return err
+		if options.ShowForm {
+			table, err := gotable.Create("NAME", "VALUE")
+			if err != nil {
+				return err
+			}
+			var sizestr, lctime, lmtime, sctime, smtime string
+			var i int
+			for _, f := range files {
+				if options.HumanReadable {
+					sizestr = util.ConvReadableSize(int64(f.Size))
+					lctime = util.ConvTimestamp(int64(f.LocalCtime))
+					lmtime = util.ConvTimestamp(int64(f.LocalMtime))
+					sctime = util.ConvTimestamp(int64(f.ServerCtime))
+					smtime = util.ConvTimestamp(int64(f.ServerMtime))
+				} else {
+					sizestr = conv.Int64ToStr(int64(f.Size))
+					lctime = conv.Int64ToStr(int64(f.LocalCtime))
+					lmtime = conv.Int64ToStr(int64(f.LocalMtime))
+					sctime = conv.Int64ToStr(int64(f.ServerCtime))
+					smtime = conv.Int64ToStr(int64(f.ServerMtime))
+				}
+				_ = table.AddRow([]string{"FsId", conv.Int64ToStr(int64(f.FsId))})
+				_ = table.AddRow([]string{"Path", strings.TrimRight(f.Path, f.ServerFilename)})
+				_ = table.AddRow([]string{"Name", f.ServerFilename})
+				_ = table.AddRow([]string{"Dir", getDirLabel(int(f.IsDir))})
+				_ = table.AddRow([]string{"Category", getCategoryLabel(int(f.Category))})
+				_ = table.AddRow([]string{"MD5", f.Md5})
+				_ = table.AddRow([]string{"Size", sizestr})
+				_ = table.AddRow([]string{"Local CTime", lctime})
+				_ = table.AddRow([]string{"Local MTime", lmtime})
+				_ = table.AddRow([]string{"Server CTime", sctime})
+				_ = table.AddRow([]string{"Server MTime", smtime})
+				if i < len(files)-1 {
+					_ = table.AddRow([]string{"-", "-"})
+				}
+				i++
+			}
+			fmt.Println(table)
+		} else {
+			table, err := gotable.Create("FsId", "Path", "Name", "Dir", "Category", "MD5", "Size", "Local CTime", "Local MTime", "Server CTime", "Server MTime")
+			if err != nil {
+				return err
+			}
+			var sizestr, lctime, lmtime, sctime, smtime string
+			for _, f := range files {
+				if options.HumanReadable {
+					sizestr = util.ConvReadableSize(int64(f.Size))
+					lctime = util.ConvTimestamp(int64(f.LocalCtime))
+					lmtime = util.ConvTimestamp(int64(f.LocalMtime))
+					sctime = util.ConvTimestamp(int64(f.ServerCtime))
+					smtime = util.ConvTimestamp(int64(f.ServerMtime))
+				} else {
+					sizestr = conv.Int64ToStr(int64(f.Size))
+					lctime = conv.Int64ToStr(int64(f.LocalCtime))
+					lmtime = conv.Int64ToStr(int64(f.LocalMtime))
+					sctime = conv.Int64ToStr(int64(f.ServerCtime))
+					smtime = conv.Int64ToStr(int64(f.ServerMtime))
+				}
+				_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, sizestr, lctime, lmtime, sctime, smtime})
+			}
+			fmt.Println(table)
 		}
-		for _, f := range files {
-			_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, conv.Int64ToStr(int64(f.Size)),
-				conv.Int64ToStr(int64(f.LocalCtime)), conv.Int64ToStr(int64(f.LocalMtime)), conv.Int64ToStr(int64(f.ServerCtime)), conv.Int64ToStr(int64(f.ServerMtime))})
-		}
-		fmt.Println(table)
 	} else {
 		for _, f := range files {
 			fmt.Println(f.ServerFilename)
