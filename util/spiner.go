@@ -2,8 +2,9 @@ package util
 
 import (
 	"fmt"
-	"github.com/tj/go-spin"
 	"time"
+
+	"github.com/tj/go-spin"
 )
 
 func Spin(label string, close chan struct{}) {

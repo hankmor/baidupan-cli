@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"baidupan-cli/app"
+	"baidupan-cli/util"
 	"fmt"
+
 	"github.com/desertbit/grumble"
-	"github.com/hankmor/gotools/conv"
 	"github.com/liushuochen/gotable"
 )
 
@@ -24,9 +25,9 @@ var userInfoCmd = &grumble.Command{
 		if err != nil {
 			return err
 		}
-		req := app.ApiClient.UserinfoApi.Xpannasuinfo(RootContext)
+		req := app.APIClient.UserinfoApi.Xpannasuinfo(RootContext)
 		resp, _, err := req.AccessToken(*TokenResp.AccessToken).Execute()
-		table.AddRow([]string{conv.Int64ToStr(int64(*resp.Uk)), *resp.BaiduName, *resp.NetdiskName, getTypeName(*resp.VipType), *resp.AvatarUrl})
+		table.AddRow([]string{util.Int64ToStr(int64(*resp.Uk)), *resp.BaiduName, *resp.NetdiskName, getTypeName(*resp.VipType), *resp.AvatarUrl})
 		fmt.Println(table)
 		return nil
 	},

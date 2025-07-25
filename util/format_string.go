@@ -2,7 +2,7 @@ package util
 
 import (
 	"fmt"
-	"github.com/hankmor/gotools/date"
+	"strconv"
 	"time"
 )
 
@@ -49,5 +49,9 @@ func ConvTimestamp(ts int64) string {
 		return ""
 	}
 	tm := time.Unix(ts, 0)
-	return date.FmtDateTime(tm)
+	return FmtDateTime(tm)
+}
+
+func Int64ToStr(src int64) string {
+	return strconv.FormatInt(src, 10)
 }

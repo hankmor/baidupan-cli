@@ -4,8 +4,8 @@ import (
 	"baidupan-cli/app"
 	"baidupan-cli/util"
 	"fmt"
+
 	"github.com/desertbit/grumble"
-	"github.com/hankmor/gotools/conv"
 	"github.com/liushuochen/gotable"
 )
 
@@ -31,7 +31,7 @@ var capCmd = &grumble.Command{
 		if err != nil {
 			return err
 		}
-		req := app.ApiClient.UserinfoApi.Apiquota(RootContext)
+		req := app.APIClient.UserinfoApi.Apiquota(RootContext)
 		humanReadable := c.Flags.Bool("human-readable")
 
 		if c.Flags.Bool("expire") {
@@ -45,7 +45,7 @@ var capCmd = &grumble.Command{
 		expire := resp.Expire
 		var totalstr, usedstr, freestr, expirestr string
 		if free != nil {
-			freestr = conv.Int64ToStr(*resp.Free)
+			freestr = util.Int64ToStr(*resp.Free)
 			if humanReadable {
 				freestr = util.ConvReadableSize(*resp.Free)
 			}
@@ -57,8 +57,8 @@ var capCmd = &grumble.Command{
 			totalstr = util.ConvReadableSize(*resp.Total)
 			usedstr = util.ConvReadableSize(*resp.Used)
 		} else {
-			totalstr = conv.Int64ToStr(*resp.Total)
-			usedstr = conv.Int64ToStr(*resp.Used)
+			totalstr = util.Int64ToStr(*resp.Total)
+			usedstr = util.Int64ToStr(*resp.Used)
 		}
 		table.AddRow([]string{totalstr, usedstr, freestr, expirestr})
 		fmt.Println(table)

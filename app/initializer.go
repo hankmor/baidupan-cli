@@ -1,8 +1,6 @@
 package app
 
-var (
-	config *Config
-)
+var config *Config
 
 type initializer struct {
 	o   any

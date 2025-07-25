@@ -3,8 +3,9 @@ package test
 import (
 	"baidupan-cli/cmd"
 	"fmt"
-	"github.com/bytedance/sonic"
 	"testing"
+
+	"github.com/bytedance/sonic"
 )
 
 func TestUnmarshal(t *testing.T) {

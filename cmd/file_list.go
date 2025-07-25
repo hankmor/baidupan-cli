@@ -6,11 +6,11 @@ import (
 	"baidupan-cli/util"
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/bytedance/sonic"
 	"github.com/desertbit/grumble"
-	"github.com/hankmor/gotools/conv"
 	"github.com/liushuochen/gotable"
-	"strings"
 )
 
 // =============================================
@@ -54,7 +54,7 @@ var fileListCmd = &grumble.Command{
 			return err
 		}
 
-		var options = NewFileListOptions()
+		options := NewFileListOptions()
 		verbose := ctx.Flags.Bool("verbose")
 		showForm := ctx.Flags.Bool("show-form")
 		dir := ctx.Flags.String("dir")
@@ -153,11 +153,10 @@ type FileLister interface {
 	List(path string, options FileListOptions) ([]*File, error)
 }
 
-type SimpleFileLister struct {
-}
+type SimpleFileLister struct{}
 
 func (sfl *SimpleFileLister) List(Path string, options FileListOptions) ([]*File, error) {
-	req := app.ApiClient.FileinfoApi.Xpanfilelist(RootContext)
+	req := app.APIClient.FileinfoApi.Xpanfilelist(RootContext)
 	reqptr := &req
 
 	sfl.applyOptions(reqptr, options)
@@ -220,9 +219,9 @@ func (sfl *SimpleFileLister) Print(files []*File, options FilePrinterOption) err
 				if options.HumanReadable {
 					sizestr = util.ConvTimestamp(int64(f.Size))
 				} else {
-					sizestr = conv.Int64ToStr(int64(f.Size))
+					sizestr = util.Int64ToStr(int64(f.Size))
 				}
-				_ = table.AddRow([]string{"FsId", conv.Int64ToStr(int64(f.FsId))})
+				_ = table.AddRow([]string{"FsId", util.Int64ToStr(int64(f.FsId))})
 				_ = table.AddRow([]string{"Path", strings.TrimRight(f.Path, f.ServerFilename)})
 				_ = table.AddRow([]string{"Name", f.ServerFilename})
 				_ = table.AddRow([]string{"Dir", getDirLabel(int(f.IsDir))})
@@ -244,9 +243,9 @@ func (sfl *SimpleFileLister) Print(files []*File, options FilePrinterOption) err
 				if options.HumanReadable {
 					sizestr = util.ConvTimestamp(int64(f.Size))
 				} else {
-					sizestr = conv.Int64ToStr(int64(f.Size))
+					sizestr = util.Int64ToStr(int64(f.Size))
 				}
-				_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), f.Md5, sizestr})
+				_ = table.AddRow([]string{util.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), f.Md5, sizestr})
 			}
 			fmt.Println(table)
 		}
@@ -268,11 +267,10 @@ type RecursionFileResp struct {
 	Files     []*File `json:"list"`     // 文件列表
 }
 
-type RecursionFileLister struct {
-}
+type RecursionFileLister struct{}
 
 func (rfl *RecursionFileLister) List(Path string, options FileListOptions) ([]*File, error) {
-	req := app.ApiClient.MultimediafileApi.Xpanfilelistall(context.Background())
+	req := app.APIClient.MultimediafileApi.Xpanfilelistall(context.Background())
 	reqptr := &req
 
 	rfl.applyOptions(reqptr, options)
@@ -341,13 +339,13 @@ func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) 
 					sctime = util.ConvTimestamp(int64(f.ServerCtime))
 					smtime = util.ConvTimestamp(int64(f.ServerMtime))
 				} else {
-					sizestr = conv.Int64ToStr(int64(f.Size))
-					lctime = conv.Int64ToStr(int64(f.LocalCtime))
-					lmtime = conv.Int64ToStr(int64(f.LocalMtime))
-					sctime = conv.Int64ToStr(int64(f.ServerCtime))
-					smtime = conv.Int64ToStr(int64(f.ServerMtime))
+					sizestr = util.Int64ToStr(int64(f.Size))
+					lctime = util.Int64ToStr(int64(f.LocalCtime))
+					lmtime = util.Int64ToStr(int64(f.LocalMtime))
+					sctime = util.Int64ToStr(int64(f.ServerCtime))
+					smtime = util.Int64ToStr(int64(f.ServerMtime))
 				}
-				_ = table.AddRow([]string{"FsId", conv.Int64ToStr(int64(f.FsId))})
+				_ = table.AddRow([]string{"FsId", util.Int64ToStr(int64(f.FsId))})
 				_ = table.AddRow([]string{"Path", strings.TrimRight(f.Path, f.ServerFilename)})
 				_ = table.AddRow([]string{"Name", f.ServerFilename})
 				_ = table.AddRow([]string{"Dir", getDirLabel(int(f.IsDir))})
@@ -378,13 +376,13 @@ func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) 
 					sctime = util.ConvTimestamp(int64(f.ServerCtime))
 					smtime = util.ConvTimestamp(int64(f.ServerMtime))
 				} else {
-					sizestr = conv.Int64ToStr(int64(f.Size))
-					lctime = conv.Int64ToStr(int64(f.LocalCtime))
-					lmtime = conv.Int64ToStr(int64(f.LocalMtime))
-					sctime = conv.Int64ToStr(int64(f.ServerCtime))
-					smtime = conv.Int64ToStr(int64(f.ServerMtime))
+					sizestr = util.Int64ToStr(int64(f.Size))
+					lctime = util.Int64ToStr(int64(f.LocalCtime))
+					lmtime = util.Int64ToStr(int64(f.LocalMtime))
+					sctime = util.Int64ToStr(int64(f.ServerCtime))
+					smtime = util.Int64ToStr(int64(f.ServerMtime))
 				}
-				_ = table.AddRow([]string{conv.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, sizestr, lctime, lmtime, sctime, smtime})
+				_ = table.AddRow([]string{util.Int64ToStr(int64(f.FsId)), strings.TrimRight(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, sizestr, lctime, lmtime, sctime, smtime})
 			}
 			fmt.Println(table)
 		}

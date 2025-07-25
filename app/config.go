@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
@@ -11,7 +12,7 @@ type Config struct {
 }
 
 type BaiduPanConfig struct {
-	AppId     string `mapstructure:"app-id" yaml:"app-id"`
+	AppID     string `mapstructure:"app-id" yaml:"app-id"`
 	AppKey    string `mapstructure:"app-key" yaml:"app-key"`
 	SecretKey string `mapstructure:"secret-key" yaml:"secret-key"`
 	SignKey   string `mapstructure:"sign-key" yaml:"sign-key"`
@@ -20,11 +21,11 @@ type BaiduPanConfig struct {
 func LoadConf(f string) (*Config, error) {
 	fmt.Printf("loading config file：%s...\n", f)
 
-	var cfg = &Config{}
-	var v = viper.New()
+	cfg := &Config{}
+	v := viper.New()
 	v.SetConfigFile(f)
 	v.SetConfigType("yaml")
-	var err = v.ReadInConfig()
+	err := v.ReadInConfig()
 	if err != nil {
 		return nil, fmt.Errorf("read config file error: %v", err)
 	}
@@ -39,7 +40,7 @@ func LoadConf(f string) (*Config, error) {
 	})
 	// 解析配置文件到结构体
 	if err = v.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf("parse config file error: %v\n", err)
+		return nil, fmt.Errorf("parse config file error: %v", err)
 	}
 	return cfg, nil
 }
