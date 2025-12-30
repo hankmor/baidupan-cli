@@ -2,14 +2,20 @@
 
 百度网盘命令行工具（交互式 shell，基于 `grumble`）。
 
-## 功能
+## 功能清单
 
-- **授权登录**：`auth`（默认自动打开浏览器扫码）
-- **用户信息**：`userinfo`
-- **容量查询**：`cap`
-- **文件列表**：`fs` / `files`（支持排序/递归/筛选/表格输出）
-- **单个重命名**：`rename`（文件/目录都支持）
-- **批量重命名**：`rename-batch`（别名 `rb`，支持 sed 替换模式 + 正则模式 + 进度条 + 出错继续）
+- [x] 扫码登录授权（`auth`，默认自动打开浏览器扫码）
+- [x] Token 持久化与自动刷新（`token.json`）
+- [x] 获取用户信息（`userinfo`）
+- [x] 获取网盘容量（`cap`）
+- [x] 查询目录下文件列表（`fs/files`，支持递归/排序/筛选/表格）
+- [x] 文件搜索（`search/find`）
+- [x] 文件/目录重命名（`rename`）
+- [x] 目录下批量重命名（`rename-batch`/`rb`，sed 替换模式 + 正则模式 + 进度 + 出错继续）
+- [ ] 文件复制/移动/删除
+- [ ] 上传/下载
+- [ ] 创建文件夹
+- [ ] 分享
 
 ## 快速开始
 
@@ -71,6 +77,20 @@ auth --open-browser=false
 ```bash
 fs --dir "/我的文档" --only-folder -v
 fs --dir "/我的文档" --recurse --limit 200 -v
+```
+
+### 文件搜索（search / find）
+
+按关键字在目录内搜索（默认递归）：
+
+```bash
+search --key "设计图" --dir "/我的文档" --limit 50 -v
+```
+
+只搜当前目录（不递归）：
+
+```bash
+find --key "UML" --dir "/我的文档" --recurse=false --limit 100
 ```
 
 ### 单个重命名（rename）

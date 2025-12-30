@@ -20,6 +20,7 @@ func init() {
 	app.RegisterCommand(capCmd)
 	app.RegisterCommand(userInfoCmd)
 	app.RegisterCommand(fileListCmd)
+	app.RegisterCommand(fileSearchCmd)
 	app.RegisterCommand(fileRenameCmd)
 	app.RegisterCommand(fileRenameBatchCmd)
 
