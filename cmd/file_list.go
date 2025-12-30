@@ -27,10 +27,10 @@ const (
 )
 
 var fileListCmd = &grumble.Command{
-	Name:    "fs",
-	Aliases: []string{"files"},
+	Name:    "ls",
+	Aliases: []string{"list"},
 	Help:    "show file lists",
-	Usage:   "fs",
+	Usage:   "ls [OPTIONS]",
 	Flags: func(f *grumble.Flags) {
 		f.String("d", "dir", "/", "the directory to show files in it")
 		f.String("o", "order", "name", `order type, support 'time','name' and 'size', default is 'name':
@@ -46,8 +46,8 @@ var fileListCmd = &grumble.Command{
 		f.Bool("v", "verbose", false, "whether to show verbose info of files")
 		f.Bool("H", "human-readable", false, "whether to show files info as human-readable")
 		f.Bool("g", "show-form", false, "whether to show files info as form, ONLY SUPPORT when `verbose` is true")
-		// f.StringL("create-time", "", "creation time to filter, when the creation time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
-		// f.StringL("update-time", "", "update time to filter, when the modification time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
+		// f.StringL("ctime", "", "creation time to filter, when the creation time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
+		// f.StringL("mtime", "", "update time to filter, when the modification time of the file is greater than it will be list, ONLY SUPPORTED when `recurse` is true")
 	},
 	Run: func(ctx *grumble.Context) error {
 		if err := checkAuthorized(ctx); err != nil {
