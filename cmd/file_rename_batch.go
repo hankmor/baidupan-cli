@@ -64,8 +64,8 @@ var fileRenameBatchCmd = &grumble.Command{
 		f.Int("s", "size", 100, "max items per request when applying (default 100)")
 		f.StringL("ondup", "", "duplication policy (optional, passed to openapi as-is)")
 		f.Bool("p", "progress", true, "show progress/spinner when applying (default true)")
-		f.Bool("c", "continue-on-error", true, "continue processing remaining chunks when error happens (default false)")
-		f.Bool("i", "ignore-errors", true, "exit with success even if some items failed (only meaningful with --continue-on-error)")
+		f.Bool("c", "continue-on-error", false, "continue processing remaining chunks when error happens (default false)")
+		f.Bool("i", "ignore-errors", false, "exit with success even if some items failed (only meaningful with --continue-on-error)")
 	},
 	Run: func(ctx *grumble.Context) error {
 		if err := checkAuthorized(ctx); err != nil {
