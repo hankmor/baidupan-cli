@@ -60,7 +60,7 @@ var fileRenameBatchCmd = &grumble.Command{
 		f.BoolL("find-regex", false, "treat --find as regex (default false: literal substring)")
 
 		f.Bool("a", "apply", false, "apply changes (default: dry-run)")
-		f.BoolL("async", false, "submit rename as async task")
+		f.Bool("A", "async", false, "submit rename as async task")
 		f.Int("s", "size", 100, "max items per request when applying (default 100)")
 		f.StringL("ondup", "", "duplication policy (optional, passed to openapi as-is)")
 		f.Bool("p", "progress", true, "show progress/spinner when applying (default true)")
@@ -135,7 +135,7 @@ var fileRenameBatchCmd = &grumble.Command{
 		}
 
 		if !ctx.Flags.Bool("apply") {
-			fmt.Println("\n(dry-run) add --apply to execute.")
+			fmt.Println("\n(dry-run) add -a/--apply to execute.")
 			return nil
 		}
 

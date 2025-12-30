@@ -12,7 +12,7 @@
 - [x] 文件搜索（`search/find`）
 - [x] 文件/目录重命名（`rename`）
 - [x] 目录下批量重命名（`rename-batch`/`rb`，sed 替换模式 + 正则模式 + 进度 + 出错继续）
-- [ ] 文件复制/移动/删除
+- [x] 文件复制/移动/删除（`cp/copy`、`mv/move`、`rm/del/delete`）
 - [ ] 上传/下载
 - [ ] 创建文件夹
 - [ ] 分享
@@ -98,7 +98,62 @@ find --key "UML" --dir "/我的文档" --recurse=false --limit 100
 > **注意**：文件/目录路径必须以 `/` 开头（绝对路径）。
 
 ```bash
-rename --path "/我的文档/uml设计图" --newname "UML设计图"
+rename --path "/我的文档/uml设计图" --newname "UML设计图"          # 默认预览
+rename -a --path "/我的文档/uml设计图" --newname "UML设计图"       # 真正执行
+```
+
+### 复制（cp / copy）
+
+支持 Linux 风格（只保留位置参数模式）：
+
+- `cp SRC DEST`
+- `cp SRC1 SRC2... DESTDIR`
+
+注意：由于无法像本地文件系统那样判断“DEST 是否存在且为目录”，本工具用一个简单规则：
+
+- **如果 DEST 以 `/` 结尾**：按“目录”处理
+- **否则**：按“文件路径”处理（会把最后一段当作新文件名）
+
+默认仅预览，真正执行需 `-a/--apply`。
+
+复制到目标目录（支持多源路径）：
+
+```bash
+cp "/我的文档/a.txt" "/目标目录/"
+cp "/我的文档/b.txt" "/目标目录/"
+cp "/我的文档/一个文件夹" "/目标目录/"
+cp "/我的文档/a.txt" "/目标目录/"          # 目录模式（末尾带 /）
+cp "/我的文档/a.txt" "/目标目录/c.txt"     # 文件路径模式（重命名）
+```
+
+真正执行：
+
+```bash
+cp -a "/我的文档/a.txt" "/目标目录/"
+```
+
+### 移动（mv / move）
+
+```bash
+mv "/我的文档/a.txt" "/目标目录/"
+mv "/我的文档/一个文件夹" "/目标目录/"
+mv -a "/我的文档/a.txt" "/目标目录/"
+mv "/我的文档/a.txt" "/目标目录/"          # 目录模式（末尾带 /）
+mv "/我的文档/a.txt" "/目标目录/c.txt"     # 文件路径模式（重命名）
+```
+
+### 删除（rm / del / delete）
+
+默认仅预览（安全起见不会直接删），真正执行需 `-a/--apply`：
+
+```bash
+rm "/我的文档/a.txt" "/我的文档/一个文件夹"
+```
+
+真正执行删除：
+
+```bash
+rm -a "/我的文档/a.txt" "/我的文档/一个文件夹"
 ```
 
 ### 批量重命名（rename-batch / rb）
@@ -111,13 +166,13 @@ rename --path "/我的文档/uml设计图" --newname "UML设计图"
 
 ```bash
 rb --dir "/我的文档" --target dirs 设计 分析
-rb --dir "/我的文档" --target dirs 设计 分析 --apply
+rb --dir "/我的文档" --target dirs 设计 分析 -a
 ```
 
 如需把 `FIND` 当作正则（而不是纯文本），加 `--find-regex`：
 
 ```bash
-rb --dir "/我的文档" --target dirs --find-regex '设.' 分析 --apply
+rb --dir "/我的文档" --target dirs --find-regex '设.' 分析 -a
 ```
 
 #### 示例 2：正则模式（--pattern/--replace）
@@ -128,7 +183,7 @@ rb --dir "/我的文档" --target dirs --find-regex '设.' 分析 --apply
 # 只是预览，不会执行
 rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4'
 # 真正执行
-rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' --apply
+rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' -a
 ```
 
 #### 示例 3：去掉中文【】里的内容
@@ -136,13 +191,13 @@ rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' --apply
 把 `xxx【xxx】xxx` 变成 `xxxxxx`：
 
 ```bash
-rb --dir "/xxx" --target dirs --pattern '^(.*)【[^】]*】(.*)$' --replace '${1}${2}' --apply
+rb --dir "/xxx" --target dirs --pattern '^(.*)【[^】]*】(.*)$' --replace '${1}${2}' -a
 ```
 
 #### 示例 5：去掉前导 0（012xxx -> 12xxx）
 
 ```bash
-rb --dir "/xxx" --target dirs --pattern '^0+([0-9]+.*)$' --replace '${1}' --apply
+rb --dir "/xxx" --target dirs --pattern '^0+([0-9]+.*)$' --replace '${1}' -a
 ```
 
 ## 批量执行与大数据量建议
@@ -158,6 +213,9 @@ rb --dir "/xxx" --target dirs --pattern '^0+([0-9]+.*)$' --replace '${1}' --appl
 ```bash
 rb --dir "/xxx" --target dirs 设计 分析 --apply -s 50
 rb --dir "/xxx" --target dirs 设计 分析 --apply --async
+cp --to "/dst" "/a/1.txt" "/a/2.txt" -s 50
+mv --to "/dst" "/a/1.txt" "/a/2.txt" --async
+rm "/a/1.txt" "/a/2.txt" --apply -s 50
 ```
 
 ## 出错继续（跳过失败项）
@@ -166,12 +224,18 @@ rb --dir "/xxx" --target dirs 设计 分析 --apply --async
 
 ```bash
 rb --dir "/xxx" --target dirs 设计 分析 --apply -c
+cp --to "/dst" "/a/1.txt" "/a/2.txt" -c
+mv --to "/dst" "/a/1.txt" "/a/2.txt" -c
+rm "/a/1.txt" "/a/2.txt" --apply -c
 ```
 
 如果希望即使有失败也返回成功退出码（适合脚本流水线）：
 
 ```bash
 rb --dir "/xxx" --target dirs 设计 分析 --apply -c -i
+cp --to "/dst" "/a/1.txt" "/a/2.txt" -c -i
+mv --to "/dst" "/a/1.txt" "/a/2.txt" -c -i
+rm "/a/1.txt" "/a/2.txt" --apply -c -i
 ```
 
 ## 常见错误排查

@@ -41,7 +41,8 @@ var fileRenameCmd = &grumble.Command{
 		f.String("d", "dir", "", "base directory when --path is not an absolute path (optional)")
 		f.String("p", "path", "", "source absolute path to rename (required)")
 		f.String("n", "newname", "", "new name (base name, required)")
-		f.BoolL("async", false, "whether to execute as async task (default false)")
+		f.Bool("a", "apply", false, "apply rename (default: dry-run)")
+		f.Bool("A", "async", false, "whether to execute as async task (default false)")
 		f.StringL("ondup", "", "duplication policy (optional, passed to openapi as-is)")
 	},
 	Run: func(ctx *grumble.Context) error {
@@ -58,22 +59,32 @@ var fileRenameCmd = &grumble.Command{
 		if newname == "" {
 			return fmt.Errorf("missing required flag: --newname")
 		}
-		// 文件操作按绝对路径处理（需要以 / 开头），否则服务端会报错
-		if !strings.HasPrefix(srcPath, "/") {
-			if baseDir == "" {
-				return fmt.Errorf("invalid --path %q: must start with '/', or provide --dir (absolute path) to join it", srcPath)
+		// 统一路径规则：允许不以 / 开头（自动从根目录补齐），也允许配合 --dir
+		if baseDir != "" {
+			var err error
+			baseDir, err = cleanAbsDir(baseDir)
+			if err != nil {
+				return fmt.Errorf("invalid --dir: %w", err)
 			}
-			if !strings.HasPrefix(baseDir, "/") {
-				return fmt.Errorf("invalid --dir %q: must start with '/'", baseDir)
-			}
+		}
+		if baseDir != "" && !strings.HasPrefix(srcPath, "/") {
 			srcPath = pathpkg.Join(baseDir, srcPath)
-		} else if baseDir != "" && !strings.HasPrefix(baseDir, "/") {
-			return fmt.Errorf("invalid --dir %q: must start with '/'", baseDir)
+		}
+		var err error
+		srcPath, err = cleanAbsPath(srcPath)
+		if err != nil {
+			return fmt.Errorf("invalid --path: %w", err)
 		}
 
 		filelist, dstPath, err := buildRenameFilelist(srcPath, newname)
 		if err != nil {
 			return err
+		}
+
+		if !ctx.Flags.Bool("apply") {
+			fmt.Printf("rename plan:\n  %s -> %s\n", srcPath, dstPath)
+			fmt.Println("dry-run only. add -a/--apply to execute.")
+			return nil
 		}
 
 		async := int32(0)
