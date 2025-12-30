@@ -29,6 +29,7 @@ func TestBuildRenameFilelist_Invalid(t *testing.T) {
 	}{
 		{"", "a"},
 		{"/", "a"},
+		{"a.txt", "b.txt"},
 		{"/a", ""},
 		{"/a", "b/c"},
 	}
@@ -37,22 +38,6 @@ func TestBuildRenameFilelist_Invalid(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected err for path=%q newname=%q", c.path, c.newname)
 		}
-	}
-}
-
-func TestBuildRenameFilelist_RelativePath(t *testing.T) {
-	filelist, dst, err := buildRenameFilelist("a.txt", "b.txt")
-	if err != nil {
-		t.Fatalf("expected nil err, got %v", err)
-	}
-	if dst != "b.txt" {
-		t.Fatalf("unexpected dst: %s", dst)
-	}
-	if filelist == "" {
-		t.Fatalf("expected non-empty filelist")
-	}
-	if !(containsAll(filelist, []string{`"path"`, `"a.txt"`, `"newname"`, `"b.txt"`})) {
-		t.Fatalf("unexpected filelist: %s", filelist)
 	}
 }
 

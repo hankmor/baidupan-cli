@@ -58,11 +58,17 @@ var fileRenameCmd = &grumble.Command{
 		if newname == "" {
 			return fmt.Errorf("missing required flag: --newname")
 		}
-		// 兼容绝对/相对路径：
-		// - srcPath 若是相对路径且提供了 baseDir，则 join 后再请求
-		// - baseDir 允许不以 "/" 开头（由服务端解释为根目录相对路径）
-		if !strings.HasPrefix(srcPath, "/") && baseDir != "" {
+		// 文件操作按绝对路径处理（需要以 / 开头），否则服务端会报错
+		if !strings.HasPrefix(srcPath, "/") {
+			if baseDir == "" {
+				return fmt.Errorf("invalid --path %q: must start with '/', or provide --dir (absolute path) to join it", srcPath)
+			}
+			if !strings.HasPrefix(baseDir, "/") {
+				return fmt.Errorf("invalid --dir %q: must start with '/'", baseDir)
+			}
 			srcPath = pathpkg.Join(baseDir, srcPath)
+		} else if baseDir != "" && !strings.HasPrefix(baseDir, "/") {
+			return fmt.Errorf("invalid --dir %q: must start with '/'", baseDir)
 		}
 
 		filelist, dstPath, err := buildRenameFilelist(srcPath, newname)
@@ -120,6 +126,9 @@ func buildRenameFilelist(srcPath, newname string) (filelist string, dstPath stri
 	if srcPath == "" {
 		return "", "", fmt.Errorf("invalid path: empty")
 	}
+	if !strings.HasPrefix(srcPath, "/") {
+		return "", "", fmt.Errorf("invalid path: %q, must be absolute path starting with '/'", srcPath)
+	}
 	if srcPath == "/" {
 		return "", "", fmt.Errorf("invalid path: cannot rename root '/'")
 	}
@@ -139,12 +148,7 @@ func buildRenameFilelist(srcPath, newname string) (filelist string, dstPath stri
 		return "", "", fmt.Errorf("invalid path: cannot rename root '/'")
 	}
 
-	dir := pathpkg.Dir(cleanSrc)
-	// 相对路径场景下 path.Dir("a.txt") 会返回 "."，这里把它视为“根/当前目录”
-	if dir == "." {
-		dir = ""
-	}
-	dstPath = pathpkg.Join(dir, newname)
+	dstPath = pathpkg.Join(pathpkg.Dir(cleanSrc), newname)
 
 	item := []fileManagerRenameItem{{Path: cleanSrc, Newname: newname}}
 	s, e := sonic.MarshalString(item)

@@ -18,6 +18,7 @@
 * [ ] 统计文件数量
 * [ ] 查询分类文件列表
 * [x] 文件/文件夹重命名操作
+* [x] 目录下正则批量重命名
 * [ ] 文件复制、移动、删除操作
 * [ ] 上传文件
 * [ ] 下载文件
@@ -125,3 +126,58 @@ rename [OPTIONS]
   * `-n, --newname`: 新名称（仅 base name，不允许包含 `/`，必填）
   * `--async`: 是否以异步任务方式提交（默认否）
   * `--ondup`: 重名冲突策略（可选，原样透传给 openapi）
+
+### 批量重命名（正则）
+
+* 命令（别名：`rb`）
+
+```shell
+rename-batch [OPTIONS]
+```
+
+* 示例 1（默认 sed 替换模式：直接给 `FIND TO` 两个参数）
+
+将 `UML设计图` 中的 `设计` 替换为 `分析`，得到 `UML分析图`（只预览）：
+
+```shell
+rb --dir "/05-我的文档" --target dirs 设计 分析
+```
+
+真正执行：
+
+```shell
+rb --dir "/05-我的文档" --target dirs 设计 分析 --apply
+```
+
+如需把 `FIND` 当作正则（而非纯文本），加 `--find-regex`（此时等价于 `--find`）。
+
+* 示例 2（正则模式：目录 `/video` 下，把 `xxx.mp4` 重命名为 `xxx_1080p.mp4`，先预览）
+
+```shell
+rename-batch --dir /video --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4'
+```
+
+* 真正执行（加上 `--apply` 即可执行）
+
+```shell
+rename-batch --dir /video --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' --apply
+```
+
+* 示例 3（正则模式：目录 `/xxx` 下，把 `xxx【xxx】xxx` 重命名为 `xxxxxx`， 去掉 `【】` 中的内容）
+```shell
+rb --dir "/xxx" --target dirs --pattern '^(.*)【.*】(.*)$' --replace '${1}${2}' --apply
+```
+
+* 选项（核心）
+  * `-d, --dir`: 扫描目录（默认 `/`）
+  * `-r, --recurse`: 是否递归扫描
+  * `--target`: 重命名目标：`files`（默认）/`dirs`/`all`
+  * `--pattern`: 正则匹配文件/目录名（正则模式）
+  * `--replace`: 替换字符串（支持 `$1..$n`）（正则模式）
+  * `FIND TO`: 默认模式的两个位置参数（sed 替换模式）
+  * `--find, --to`: sed 模式的同义参数（更适合脚本/显式）
+  * `--find-regex`: 把 `FIND/--find` 按正则处理（默认否）
+  * `--apply`: 执行（默认只预览）
+  * `--progress`: 执行时显示进度/转圈提示（默认是）
+  * `--continue-on-error`: 执行出错时跳过当前 chunk，继续处理剩余（默认否）
+  * `--ignore-errors`: 配合 `--continue-on-error` 使用，即使有失败也返回成功退出码
