@@ -27,7 +27,6 @@ var fileMoveCmd = &grumble.Command{
 		f.Bool("A", "async", false, "submit as async task")
 		f.Int("s", "size", 100, "max items per request (default 100)")
 		f.StringL("ondup", "", "duplication policy (optional, passed to openapi as-is)")
-		f.Bool("p", "progress", true, "show progress when executing (default true)")
 		f.Bool("c", "continue-on-error", false, "continue processing remaining chunks when error happens (default false)")
 		f.Bool("i", "ignore-errors", false, "exit with success even if some items failed (only meaningful with --continue-on-error)")
 	},
@@ -115,7 +114,6 @@ var fileMoveCmd = &grumble.Command{
 
 		ondup := strings.TrimSpace(ctx.Flags.String("ondup"))
 		chunkSize := ctx.Flags.Int("size")
-		showProgress := ctx.Flags.Bool("progress")
 		continueOnError := ctx.Flags.Bool("continue-on-error")
 		ignoreErrors := ctx.Flags.Bool("ignore-errors")
 
@@ -123,7 +121,7 @@ var fileMoveCmd = &grumble.Command{
 			"move",
 			items,
 			chunkSize,
-			showProgress,
+			true,
 			continueOnError,
 			ignoreErrors,
 			func(filelist string) ([]byte, error) {

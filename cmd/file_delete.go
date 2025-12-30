@@ -25,11 +25,9 @@ var fileDeleteCmd = &grumble.Command{
 		a.StringList("paths", "path(s) to delete (path auto starts from '/')", grumble.Default([]string{}))
 	},
 	Flags: func(f *grumble.Flags) {
-		f.Bool("r", "recursive", false, "compat flag: delete directory recursively (baidupan deletes directories by default)")
 		f.Bool("a", "apply", false, "apply deletion (default: dry-run)")
 		f.Bool("A", "async", false, "submit as async task")
 		f.Int("s", "size", 100, "max items per request (default 100)")
-		f.Bool("p", "progress", true, "show progress when executing (default true)")
 		f.Bool("c", "continue-on-error", false, "continue processing remaining chunks when error happens (default false)")
 		f.Bool("i", "ignore-errors", false, "exit with success even if some items failed (only meaningful with --continue-on-error)")
 	},
@@ -52,8 +50,6 @@ var fileDeleteCmd = &grumble.Command{
 			items = append(items, fileManagerDeleteItem{Path: src})
 		}
 
-		_ = ctx.Flags.Bool("recursive") // compat only
-
 		apply := ctx.Flags.Bool("apply")
 		if !apply {
 			fmt.Printf("delete plan (%d item(s)):\n", len(items))
@@ -72,7 +68,6 @@ var fileDeleteCmd = &grumble.Command{
 		}
 
 		chunkSize := ctx.Flags.Int("size")
-		showProgress := ctx.Flags.Bool("progress")
 		continueOnError := ctx.Flags.Bool("continue-on-error")
 		ignoreErrors := ctx.Flags.Bool("ignore-errors")
 
@@ -80,7 +75,7 @@ var fileDeleteCmd = &grumble.Command{
 			"delete",
 			items,
 			chunkSize,
-			showProgress,
+			true,
 			continueOnError,
 			ignoreErrors,
 			func(filelist string) ([]byte, error) {

@@ -61,17 +61,15 @@ var fileCopyCmd = &grumble.Command{
 	Name:    "cp",
 	Aliases: []string{"copy"},
 	Help:    "copy file(s)/folder(s) to a destination directory (default: dry-run; use -a/--apply to execute)",
-	Usage:   "cp [-r] SRC DEST  |  cp [-r] SRC1 SRC2... DESTDIR",
+	Usage:   "cp SRC DEST  |  cp SRC1 SRC2... DESTDIR",
 	Args: func(a *grumble.Args) {
 		a.StringList("args", "SRC... DEST (path auto starts from '/')", grumble.Default([]string{}))
 	},
 	Flags: func(f *grumble.Flags) {
-		f.Bool("r", "recursive", false, "compat flag: copy directory recursively (baidupan copies directories recursively by default)")
 		f.Bool("a", "apply", false, "apply copy (default: dry-run)")
 		f.Bool("A", "async", false, "submit as async task")
 		f.Int("s", "size", 100, "max items per request (default 100)")
 		f.StringL("ondup", "", "duplication policy (optional, passed to openapi as-is)")
-		f.Bool("p", "progress", true, "show progress when executing (default true)")
 		f.Bool("c", "continue-on-error", false, "continue processing remaining chunks when error happens (default false)")
 		f.Bool("i", "ignore-errors", false, "exit with success even if some items failed (only meaningful with --continue-on-error)")
 	},
@@ -79,8 +77,6 @@ var fileCopyCmd = &grumble.Command{
 		if err := checkAuthorized(ctx); err != nil {
 			return err
 		}
-
-		_ = ctx.Flags.Bool("recursive") // baidupan API copies directories recursively by default
 
 		rawArgs := ctx.Args.StringList("args")
 		if len(rawArgs) == 0 {
@@ -163,7 +159,6 @@ var fileCopyCmd = &grumble.Command{
 
 		ondup := strings.TrimSpace(ctx.Flags.String("ondup"))
 		chunkSize := ctx.Flags.Int("size")
-		showProgress := ctx.Flags.Bool("progress")
 		continueOnError := ctx.Flags.Bool("continue-on-error")
 		ignoreErrors := ctx.Flags.Bool("ignore-errors")
 
@@ -171,7 +166,7 @@ var fileCopyCmd = &grumble.Command{
 			"copy",
 			items,
 			chunkSize,
-			showProgress,
+			true,
 			continueOnError,
 			ignoreErrors,
 			func(filelist string) ([]byte, error) {
