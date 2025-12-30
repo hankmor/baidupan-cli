@@ -25,20 +25,40 @@ var (
 			f.String("c", "config", "./config.yaml", "set system config file")
 			// TODO remove
 			f.Bool("t", "test", true, "use test mode")
+			// debug helper: allow injecting access token directly (avoids relying on expired mock token)
+			f.StringL("access-token", "", "override baidupan access token (debug)")
 		},
 	})
 )
 var APIClient *openapi.APIClient
 
+var initHooks []func(a *grumble.App, flags grumble.FlagMap) error
+
+// RegisterInitHook registers an initialization hook.
+// Hooks are executed in registration order before the first command.
+func RegisterInitHook(h func(a *grumble.App, flags grumble.FlagMap) error) {
+	initHooks = append(initHooks, h)
+}
+
 func init() {
-	// 程序执行第一个命令前执行此函数，用于加载配置文件
-	App.OnInit(func(a *grumble.App, flags grumble.FlagMap) error {
+	// 默认 hook：加载配置文件（必须最先执行）
+	RegisterInitHook(func(a *grumble.App, flags grumble.FlagMap) error {
 		if c, err := LoadConf(flags.String("config")); err != nil {
 			return err
 		} else {
 			Conf = c
 			return nil
 		}
+	})
+
+	// 程序执行第一个命令前执行所有 hooks
+	App.OnInit(func(a *grumble.App, flags grumble.FlagMap) error {
+		for _, h := range initHooks {
+			if err := h(a, flags); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 
 	// 创建 api client

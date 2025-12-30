@@ -9,7 +9,6 @@ require (
 	github.com/desertbit/grumble v1.2.0
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
-	// github.com/hankmor/gotools v0.0.3
 	github.com/liushuochen/gotable v0.0.0-20221119160816-1113793e7092
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/spf13/viper v1.20.1

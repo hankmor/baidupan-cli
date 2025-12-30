@@ -28,7 +28,9 @@ go.work.sum
 
 .DS_Store
 
-# vscode
-.vscode
+# config.yaml
+config-local.yaml
 
-config.yaml
+# debug artifacts
+.debug/
+token.json
