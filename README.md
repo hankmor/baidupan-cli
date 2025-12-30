@@ -1,183 +1,167 @@
-> **NOTE:**
->
-> 由于百度官方已经禁止个人账号创建应用，无法获取开发所需的appkey等信息，该项目暂停开发。
-
 # baidupan-cli
 
-百度网盘命令行工具。
+百度网盘命令行工具（交互式 shell，基于 `grumble`）。
 
-## 功能列表
+## 功能
 
-* [x] 扫码登录授权
-* [x] 获取用户信息
-* [x] 获取网盘容量
-* [x] 查询目录下的文件列表，支持递归、排序、筛选文件或目录
-* [ ] 搜索文件
-* [ ] 查询文件元数据信息
-* [ ] 查询特定文件类型列表
-* [ ] 统计文件数量
-* [ ] 查询分类文件列表
-* [x] 文件/文件夹重命名操作
-* [x] 目录下正则批量重命名
-* [ ] 文件复制、移动、删除操作
-* [ ] 上传文件
-* [ ] 下载文件
-* [ ] 创建文件夹
-* [ ] 文件分享服务
-* [ ] ……
+- **授权登录**：`auth`（默认自动打开浏览器扫码）
+- **用户信息**：`userinfo`
+- **容量查询**：`cap`
+- **文件列表**：`fs` / `files`（支持排序/递归/筛选/表格输出）
+- **单个重命名**：`rename`（文件/目录都支持）
+- **批量重命名**：`rename-batch`（别名 `rb`，支持 sed 替换模式 + 正则模式 + 进度条 + 出错继续）
 
-## 使用说明
+## 快速开始
 
-### 授权
+### 配置文件
 
-首先需要通过授权获取网盘的访问权限。
+项目根目录准备一个配置文件（示例：`config.yaml`）：
 
-* 启动 `cli`:
+```yaml
+baidu-pan:
+  app-id:
+  app-key:
+  secret-key:
+  sign-key:
+```
 
-```shell
+### 运行
+
+- **运行二进制**（推荐，token 默认保存到二进制同目录）：
+
+```bash
+go build -o baidupan-cli .
 ./baidupan-cli -c config.yaml
 ```
 
-通过 `-c` 指定配置文件，如果不指定默认寻找同目录下的名为 `config.yaml`:
+- **go run**（会生成临时可执行文件，建议指定 token 固定目录）：
 
-![start cli](doc/start.png)
+```bash
+export BAIDUPAN_CLI_TOKEN_DIR="$PWD/.debug"
+go run . -c config.yaml
+```
 
-* 键入如下命令获取授权二维码:
+### 授权
 
-```shell
+在交互 shell 里执行：
+
+```bash
 auth
 ```
 
-如图所示：
+- 默认会 **打开浏览器** 进行扫码授权；如果你不想打开浏览器：
 
-![auth | 100](doc/auth.png)
-
-* 扫码授权
-
-通过移动设备扫描二维码并授予 `cli` 访问百度盘的权限，不久会看到授权成功信息, 之后即可正常使用！
-
-### 查看帮助
-
-启动 `cli` 后键入 `help` 可以查阅帮助信息:
-
-![help | 600](doc/help.png)
-
-想要查看具体某个命令的帮助，键入 `COMMAND -h`：
-
-![command help.png | 600](doc/help-cmd.png)
-
-### 查询用户信息
-
-* 命令:
-
-```shell
-userinfo [OPTIONS]
+```bash
+auth --open-browser=false
 ```
 
-* 选项
+## Token 持久化（免重复授权）
 
-无
+授权成功后会写入 `token.json`，并在启动时自动读取/过期自动刷新。
 
-### 查询磁盘容量
+- **默认位置**：可执行文件同目录的 `token.json`
+- **覆盖位置**（两者选一）：
+  - **`BAIDUPAN_CLI_TOKEN_FILE`**：直接指定 token 文件路径
+  - **`BAIDUPAN_CLI_TOKEN_DIR`**：指定目录，文件名固定 `token.json`
 
-* 命令
+## 常用命令
 
-```shell
-cap [OPTIONS]
+### 文件列表（fs / files）
+
+```bash
+fs --dir "/我的文档" --only-folder -v
+fs --dir "/我的文档" --recurse --limit 200 -v
 ```
 
-* 选项
+### 单个重命名（rename）
 
-  * `-e`: 是否检查过期信息，设置此参数结果会展示7天内是否有容量到期(结果的 `Expire In 7 Days` 显示 `Y`)
-  * `-f`: 是否检查免费磁盘空间信息，设置后结果的 `Free` 属性为免费磁盘大小
-  * `-H`: 是否输出为友好可读性信息
+> **注意**：文件/目录路径必须以 `/` 开头（绝对路径）。
 
-### 查询目录下的文件列表
-
-* 命令
-
-```shell
-files [OPTIONS]
+```bash
+rename --path "/我的文档/uml设计图" --newname "UML设计图"
 ```
 
-* 选项
-  * `-d, --dir`: 查询的目录绝对路径，默认为根路径 `/`
-  * `-o, --order`: 设置排序类型，支持 `name` 按照名称排序（默认），`size` 按照文件大小排序，`time` 按照修改时间排序
-  * `-D, --desc`: 排序时是否降序排列，默认为升序排列
-  * `-l, --limit`: 设置查询的文件最大数量，默认为1000，建议不超过 1000
-  * `--only-files`: 是否仅在结果中显示文件，即不显示文件夹，默认文件和目录都显示
-  * `--only-folder`: 是否仅在结果中显示目录，即不显示文件，默认文件和目录都显示
-  * `-r, --rescure`: 是否递归查询目录下的所有文件，默认为否
-  * `--show-empty`: 是否显示空文件夹信息，仅 `--rescure` 设置为是后有效
-  * `-v, --verbose`: 是否显示详细信息，默认仅显示文件名
-  * `-H, --human-readable`: 是否输出为友好可读性信息
-  * `-g, --show-form`: 是否将结果输出为表单格式，默认输出为表格
+### 批量重命名（rename-batch / rb）
 
-### 重命名文件/目录
+`rb` 默认是 **sed 替换模式**：给两个位置参数 `FIND TO`，对名称做“包含替换”。
 
-* 命令
+#### 示例 1：替换模式（默认）
 
-```shell
-rename [OPTIONS]
+把目录名 `UML设计图` 中的 `设计` 替换为 `分析`：
+
+```bash
+rb --dir "/我的文档" --target dirs 设计 分析
+rb --dir "/我的文档" --target dirs 设计 分析 --apply
 ```
 
-* 选项
-  * `-p, --path`: 需要重命名的文件/目录绝对路径（必填）
-  * `-n, --newname`: 新名称（仅 base name，不允许包含 `/`，必填）
-  * `--async`: 是否以异步任务方式提交（默认否）
-  * `--ondup`: 重名冲突策略（可选，原样透传给 openapi）
+如需把 `FIND` 当作正则（而不是纯文本），加 `--find-regex`：
 
-### 批量重命名（正则）
-
-* 命令（别名：`rb`）
-
-```shell
-rename-batch [OPTIONS]
+```bash
+rb --dir "/我的文档" --target dirs --find-regex '设.' 分析 --apply
 ```
 
-* 示例 1（默认 sed 替换模式：直接给 `FIND TO` 两个参数）
+#### 示例 2：正则模式（--pattern/--replace）
 
-将 `UML设计图` 中的 `设计` 替换为 `分析`，得到 `UML分析图`（只预览）：
+把 `xxx.mp4` 改名为 `xxx_1080p.mp4`：
 
-```shell
-rb --dir "/05-我的文档" --target dirs 设计 分析
+```bash
+# 只是预览，不会执行
+rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4'
+# 真正执行
+rb --dir "/video" --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' --apply
 ```
 
-真正执行：
+#### 示例 3：去掉中文【】里的内容
 
-```shell
-rb --dir "/05-我的文档" --target dirs 设计 分析 --apply
+把 `xxx【xxx】xxx` 变成 `xxxxxx`：
+
+```bash
+rb --dir "/xxx" --target dirs --pattern '^(.*)【[^】]*】(.*)$' --replace '${1}${2}' --apply
 ```
 
-如需把 `FIND` 当作正则（而非纯文本），加 `--find-regex`（此时等价于 `--find`）。
+#### 示例 5：去掉前导 0（012xxx -> 12xxx）
 
-* 示例 2（正则模式：目录 `/video` 下，把 `xxx.mp4` 重命名为 `xxx_1080p.mp4`，先预览）
-
-```shell
-rename-batch --dir /video --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4'
+```bash
+rb --dir "/xxx" --target dirs --pattern '^0+([0-9]+.*)$' --replace '${1}' --apply
 ```
 
-* 真正执行（加上 `--apply` 即可执行）
+## 批量执行与大数据量建议
 
-```shell
-rename-batch --dir /video --pattern '^(.*)\.mp4$' --replace '${1}_1080p.mp4' --apply
+当目录下条目很多时，单次请求可能慢/超时：
+
+- 调小每次请求包含的条目数：`-s/--size`
+- 或使用异步任务：`--async`
+- 默认会显示进度与转圈：`-p/--progress`
+
+示例：
+
+```bash
+rb --dir "/xxx" --target dirs 设计 分析 --apply -s 50
+rb --dir "/xxx" --target dirs 设计 分析 --apply --async
 ```
 
-* 示例 3（正则模式：目录 `/xxx` 下，把 `xxx【xxx】xxx` 重命名为 `xxxxxx`， 去掉 `【】` 中的内容）
-```shell
-rb --dir "/xxx" --target dirs --pattern '^(.*)【.*】(.*)$' --replace '${1}${2}' --apply
+## 出错继续（跳过失败项）
+
+批量执行时如果希望“出错也继续处理后续”：
+
+```bash
+rb --dir "/xxx" --target dirs 设计 分析 --apply -c
 ```
 
-* 选项（核心）
-  * `-d, --dir`: 扫描目录（默认 `/`）
-  * `-r, --recurse`: 是否递归扫描
-  * `--target`: 重命名目标：`files`（默认）/`dirs`/`all`
-  * `--pattern`: 正则匹配文件/目录名（正则模式）
-  * `--replace`: 替换字符串（支持 `$1..$n`）（正则模式）
-  * `FIND TO`: 默认模式的两个位置参数（sed 替换模式）
-  * `--find, --to`: sed 模式的同义参数（更适合脚本/显式）
-  * `--find-regex`: 把 `FIND/--find` 按正则处理（默认否）
-  * `--apply`: 执行（默认只预览）
-  * `--progress`: 执行时显示进度/转圈提示（默认是）
-  * `--continue-on-error`: 执行出错时跳过当前 chunk，继续处理剩余（默认否）
-  * `--ignore-errors`: 配合 `--continue-on-error` 使用，即使有失败也返回成功退出码
+如果希望即使有失败也返回成功退出码（适合脚本流水线）：
+
+```bash
+rb --dir "/xxx" --target dirs 设计 分析 --apply -c -i
+```
+
+## 常见错误排查
+
+- **`errno=-6`**：常见是参数/路径问题（路径必须以 `/` 开头、目录不存在等）
+- **`errno=12` + `info[].errno=-8`**：批量部分失败，通常是**重名冲突**（替换后目标名称已存在）。建议先 dry-run 看计划，或保留部分信息避免撞名。
+
+## 批量重命名执行顺序说明（包含目录时）
+
+当 `--target dirs` 或 `--target all` 且在递归目录下批量重命名时，为避免“先改父目录导致子路径失效”，程序会按以下顺序提交：
+
+- 先重命名 **文件**
+- 再重命名 **目录**（按路径深度从深到浅）

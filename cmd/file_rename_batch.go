@@ -114,7 +114,7 @@ var fileRenameBatchCmd = &grumble.Command{
 		if err != nil {
 			return err
 		}
-		items, plan, err := buildBatchRenamePlan(files, re, replace, target)
+		_, plan, err := buildBatchRenamePlan(files, re, replace, target)
 		if err != nil {
 			return err
 		}
@@ -146,13 +146,42 @@ var fileRenameBatchCmd = &grumble.Command{
 		showProgress := ctx.Flags.Bool("progress")
 		continueOnError := ctx.Flags.Bool("continue-on-error")
 		ignoreErrors := ctx.Flags.Bool("ignore-errors")
+		if ignoreErrors && !continueOnError {
+			return fmt.Errorf("--ignore-errors requires --continue-on-error")
+		}
 		chunkSize := ctx.Flags.Int("size")
 		if chunkSize <= 0 {
 			return fmt.Errorf("invalid --size: %d", chunkSize)
 		}
 		ondup := strings.TrimSpace(ctx.Flags.String("ondup"))
 
-		total := len(items)
+		// Apply order matters when directories are involved:
+		// - rename files first (so their old paths are still valid)
+		// - then rename directories from deep to shallow (avoid parent rename breaking child paths)
+		applyPlan := make([]batchRenamePlanItem, len(plan))
+		copy(applyPlan, plan)
+		sort.Slice(applyPlan, func(i, j int) bool {
+			a, b := applyPlan[i], applyPlan[j]
+			if a.IsDir != b.IsDir {
+				return !a.IsDir // files first
+			}
+			da := pathDepth(a.OldPath)
+			db := pathDepth(b.OldPath)
+			if a.IsDir && da != db {
+				return da > db // dirs: deep first
+			}
+			// stable-ish
+			return a.OldPath < b.OldPath
+		})
+		applyItems := make([]fileManagerRenameItem, 0, len(applyPlan))
+		for _, p := range applyPlan {
+			applyItems = append(applyItems, fileManagerRenameItem{
+				Path:    p.OldPath,
+				Newname: p.NewName,
+			})
+		}
+
+		total := len(applyItems)
 		var (
 			appliedChunks int
 			failedChunks  int
@@ -163,7 +192,7 @@ var fileRenameBatchCmd = &grumble.Command{
 			if end > total {
 				end = total
 			}
-			chunk := items[i:end]
+			chunk := applyItems[i:end]
 
 			if showProgress {
 				fmt.Printf("\n[%d/%d] applying %d item(s)...\n", i+1, total, len(chunk))
@@ -263,6 +292,15 @@ var fileRenameBatchCmd = &grumble.Command{
 
 		return nil
 	},
+}
+
+func pathDepth(p string) int {
+	p = strings.TrimSpace(p)
+	p = strings.TrimRight(p, "/")
+	if p == "" {
+		return 0
+	}
+	return strings.Count(p, "/")
 }
 
 func listFilesForBatchRename(dir string, recurse bool, limit int32) ([]*File, error) {
