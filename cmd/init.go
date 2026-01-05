@@ -26,6 +26,7 @@ func init() {
 	app.RegisterCommand(fileCopyCmd)
 	app.RegisterCommand(fileMoveCmd)
 	app.RegisterCommand(fileDeleteCmd)
+	app.RegisterCommand(cdCmd)
 
 	// 启动时自动加载 token，并在必要时刷新（不与 app 包形成循环依赖）
 	app.RegisterInitHook(func(a *grumble.App, flags grumble.FlagMap) error {

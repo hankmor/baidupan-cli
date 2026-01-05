@@ -73,12 +73,7 @@ var fileRenameBatchCmd = &grumble.Command{
 		}
 
 		dir := strings.TrimSpace(ctx.Flags.String("dir"))
-		if dir == "" {
-			dir = "/"
-		}
-		if !strings.HasPrefix(dir, "/") {
-			return fmt.Errorf("invalid --dir %q: must start with '/'", dir)
-		}
+		dir = ResolvePath(dir)
 		// prefer flags; fallback to positional args (sed-like)
 		find := ctx.Flags.String("find")
 		to := ctx.Flags.String("to")

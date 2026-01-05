@@ -29,6 +29,8 @@ var (
 			f.StringL("access-token", "", "override baidupan access token (debug)")
 		},
 	})
+	
+	CurrentDir = "/"
 )
 var APIClient *openapi.APIClient
 

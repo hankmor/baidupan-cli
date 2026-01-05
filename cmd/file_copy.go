@@ -21,40 +21,15 @@ type fileManagerCopyMoveItem struct {
 }
 
 func cleanAbsPath(p string) (string, error) {
-	p = strings.TrimSpace(p)
-	if p == "" {
-		return "", fmt.Errorf("empty path")
+	resolved := ResolvePath(p)
+	if resolved == "/" {
+		return "", fmt.Errorf("invalid path: '/' (root directory not allowed here)")
 	}
-	// 兼容更贴近 Linux 的输入：自动从根目录补齐
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + strings.TrimLeft(p, "/")
-	}
-	if p == "/" {
-		return "", fmt.Errorf("invalid path: '/'")
-	}
-	clean := strings.TrimRight(p, "/")
-	if clean == "" {
-		return "", fmt.Errorf("invalid path: '/'")
-	}
-	return clean, nil
+	return resolved, nil
 }
 
 func cleanAbsDir(p string) (string, error) {
-	p = strings.TrimSpace(p)
-	if p == "" {
-		return "", fmt.Errorf("empty dir")
-	}
-	// 兼容更贴近 Linux 的输入：自动从根目录补齐
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + strings.TrimLeft(p, "/")
-	}
-	if p != "/" {
-		p = strings.TrimRight(p, "/")
-		if p == "" {
-			p = "/"
-		}
-	}
-	return p, nil
+	return ResolvePath(p), nil
 }
 
 var fileCopyCmd = &grumble.Command{

@@ -108,6 +108,12 @@ var (
 				}
 			}
 			close(closeSpin)
+			if e != nil {
+				return e
+			}
+			if TokenResp == nil {
+				return fmt.Errorf("authorization failed: no token received")
+			}
 			fmt.Println("\nauthorize success!")
 			TokenDeadline = time.Now().Add(time.Second * time.Duration(*TokenResp.ExpiresIn))
 			// 保存 token 到可执行文件目录，便于下次启动自动加载/刷新

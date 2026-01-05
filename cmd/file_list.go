@@ -33,7 +33,7 @@ var fileListCmd = &grumble.Command{
 	Help:    "show file lists",
 	Usage:   "ls [OPTIONS]",
 	Flags: func(f *grumble.Flags) {
-		f.String("d", "dir", "/", "the directory to show files in it")
+		f.String("d", "dir", "", "the directory to show files in it (default: current directory)")
 		f.String("o", "order", "name", `order type, support 'time','name' and 'size', default is 'name':
 				1. time: sort files by file type first, then sort by modification time
 				2. name: sort files by file type first, then sort by file name
@@ -59,6 +59,7 @@ var fileListCmd = &grumble.Command{
 		verbose := ctx.Flags.Bool("verbose")
 		showForm := ctx.Flags.Bool("show-form")
 		dir := ctx.Flags.String("dir")
+		dir = ResolvePath(dir)
 		recurse := ctx.Flags.Bool("recurse")
 		desc := ctx.Flags.Bool("desc")
 		humanReadable := ctx.Flags.Bool("human-readable")
@@ -107,7 +108,7 @@ var fileListCmd = &grumble.Command{
 		if err != nil {
 			return err
 		}
-		return fileLister.Print(files, FilePrinterOption{Verbose: verbose, HumanReadable: humanReadable, ShowForm: showForm})
+		return fileLister.Print(dir, files, FilePrinterOption{Verbose: verbose, HumanReadable: humanReadable, ShowForm: showForm})
 	},
 }
 
@@ -120,7 +121,7 @@ type FilePrinterOption struct {
 }
 
 type FileListPrinter interface {
-	Print(files []*File, options FilePrinterOption) error
+	Print(root string, files []*File, options FilePrinterOption) error
 }
 
 // 查询目录下的文件列表
@@ -228,7 +229,7 @@ func (sfl *SimpleFileLister) applyOptions(req *openapi.ApiXpanfilelistRequest, o
 	}
 }
 
-func (sfl *SimpleFileLister) Print(files []*File, options FilePrinterOption) error {
+func (sfl *SimpleFileLister) Print(root string, files []*File, options FilePrinterOption) error {
 	// 表格输出详细信息
 	if options.Verbose {
 		if options.ShowForm {
@@ -365,7 +366,7 @@ func (rfl *RecursionFileLister) applyOptions(req *openapi.ApiXpanfilelistallRequ
 	}
 }
 
-func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) error {
+func (rfl *RecursionFileLister) Print(root string, files []*File, options FilePrinterOption) error {
 	// 表格输出详细信息
 	if options.Verbose {
 		if options.ShowForm {
@@ -391,7 +392,7 @@ func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) 
 				}
 				_ = table.AddRow([]string{"FsId", util.Int64ToStr(int64(f.FsId))})
 				_ = table.AddRow([]string{"Path", fileParentDir(f.Path, f.ServerFilename)})
-				_ = table.AddRow([]string{"Name", f.ServerFilename})
+				_ = table.AddRow([]string{"Name", getIndentedName(root, f.Path, f.ServerFilename)})
 				_ = table.AddRow([]string{"Dir", getDirLabel(int(f.IsDir))})
 				_ = table.AddRow([]string{"Category", getCategoryLabel(int(f.Category))})
 				_ = table.AddRow([]string{"MD5", f.Md5})
@@ -426,13 +427,13 @@ func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) 
 					sctime = util.Int64ToStr(int64(f.ServerCtime))
 					smtime = util.Int64ToStr(int64(f.ServerMtime))
 				}
-				_ = table.AddRow([]string{util.Int64ToStr(int64(f.FsId)), fileParentDir(f.Path, f.ServerFilename), f.ServerFilename, getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, sizestr, lctime, lmtime, sctime, smtime})
+				_ = table.AddRow([]string{util.Int64ToStr(int64(f.FsId)), fileParentDir(f.Path, f.ServerFilename), getIndentedName(root, f.Path, f.ServerFilename), getDirLabel(int(f.IsDir)), getCategoryLabel(int(f.Category)), f.Md5, sizestr, lctime, lmtime, sctime, smtime})
 			}
 			fmt.Println(table)
 		}
 	} else {
 		for _, f := range files {
-			fmt.Println(f.ServerFilename)
+			fmt.Println(getIndentedName(root, f.Path, f.ServerFilename) + getTrailingSlash(int(f.IsDir)))
 		}
 	}
 	return nil
@@ -440,9 +441,40 @@ func (rfl *RecursionFileLister) Print(files []*File, options FilePrinterOption) 
 
 func getDirLabel(i int) string {
 	if i == 1 {
-		return Yes
+		return "d"
 	}
-	return No
+	return "f"
+}
+
+func getTrailingSlash(isDir int) string {
+	if isDir == 1 {
+		return "/"
+	}
+	return ""
+}
+
+func getIndentedName(root, path, name string) string {
+	// Clean paths to ensure consistent format
+	root = strings.TrimSuffix(pathpkg.Clean(root), "/")
+	path = pathpkg.Clean(path)
+	
+	// If path is just root/name...
+	if !strings.HasPrefix(path, root) {
+		return name
+	}
+	
+	rel := strings.TrimPrefix(path, root)
+    rel = strings.TrimPrefix(rel, "/") // Remove leading slash of relative part
+    
+    // Parent dir of file relative to root
+    // rel: c/d.txt -> depth 1
+    // rel: c -> depth 0
+    
+    depth := strings.Count(rel, "/")
+    if depth > 0 {
+    	return strings.Repeat("  ", depth) + name
+    }
+    return name
 }
 
 func getCategoryLabel(i int) string {

@@ -48,13 +48,8 @@ var fileSearchCmd = &grumble.Command{
 		if key == "" {
 			return fmt.Errorf("missing required flag: --key")
 		}
-		dir := strings.TrimSpace(ctx.Flags.String("dir"))
-		if dir == "" {
-			dir = "/"
-		}
-		if !strings.HasPrefix(dir, "/") {
-			return fmt.Errorf("invalid --dir %q: must start with '/'", dir)
-		}
+		dir := ctx.Flags.String("dir")
+		dir = ResolvePath(dir)
 
 		limit := ctx.Flags.Int("limit")
 		if limit <= 0 {
@@ -132,6 +127,6 @@ var fileSearchCmd = &grumble.Command{
 		verbose := ctx.Flags.Bool("verbose")
 		humanReadable := ctx.Flags.Bool("human-readable")
 		showForm := ctx.Flags.Bool("show-form")
-		return (&SimpleFileLister{}).Print(out, FilePrinterOption{Verbose: verbose, HumanReadable: humanReadable, ShowForm: showForm})
+		return (&SimpleFileLister{}).Print(dir, out, FilePrinterOption{Verbose: verbose, HumanReadable: humanReadable, ShowForm: showForm})
 	},
 }

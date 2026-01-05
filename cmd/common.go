@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"baidupan-cli/app"
 	openapi "baidupan-cli/openxpanapi"
 	"baidupan-cli/util"
 	"fmt"
+	pathpkg "path"
 	"strings"
 
 	"github.com/desertbit/grumble"
@@ -41,4 +43,23 @@ func derefStr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func ResolvePath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return app.CurrentDir
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = pathpkg.Join(app.CurrentDir, p)
+	}
+	// Clean handles .. and .
+	p = pathpkg.Clean(p)
+	// Even after clean, if it refers to root, it might end up as just "/", which is fine.
+	// But ensure logic consistent with how Baidu expects paths.
+	// Usually Baidu Pan API expects absolute paths starting with /.
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return p
 }
