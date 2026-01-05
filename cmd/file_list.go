@@ -31,7 +31,10 @@ var fileListCmd = &grumble.Command{
 	Name:    "ls",
 	Aliases: []string{"list"},
 	Help:    "show file lists",
-	Usage:   "ls [OPTIONS]",
+	Usage:   "ls [OPTIONS] [DIR]",
+	Args: func(a *grumble.Args) {
+		a.String("dir", "directory path (optional)", grumble.Default(""))
+	},
 	Flags: func(f *grumble.Flags) {
 		f.String("d", "dir", "", "the directory to show files in it (default: current directory)")
 		f.String("o", "order", "name", `order type, support 'time','name' and 'size', default is 'name':
@@ -58,7 +61,12 @@ var fileListCmd = &grumble.Command{
 		options := NewFileListOptions()
 		verbose := ctx.Flags.Bool("verbose")
 		showForm := ctx.Flags.Bool("show-form")
-		dir := ctx.Flags.String("dir")
+
+		// Prefer positional argument if provided, otherwise use flag
+		dir := ctx.Args.String("dir")
+		if dir == "" {
+			dir = ctx.Flags.String("dir")
+		}
 		dir = ResolvePath(dir)
 		recurse := ctx.Flags.Bool("recurse")
 		desc := ctx.Flags.Bool("desc")

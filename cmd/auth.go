@@ -129,6 +129,7 @@ var (
 )
 
 func runRefreshToken() {
+	fmt.Println("Refreshing token...")
 	go func() {
 		for {
 			// 距离过期还有一段时间就睡眠，避免 busy loop
@@ -158,6 +159,7 @@ func runRefreshToken() {
 				RefreshToken: derefStr(TokenResp.RefreshToken),
 				ExpiresAt:    TokenDeadline.Unix(),
 			})
+			fmt.Println("Refreshed token.")
 		}
 	}()
 }

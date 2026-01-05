@@ -51,13 +51,13 @@ func init() {
 			TokenDeadline = time.Unix(st.ExpiresAt, 0)
 		}
 
-		// 启动后台刷新（只要有 refresh_token）
-		if st.RefreshToken != "" {
-			runRefreshToken()
-		}
 
 		// 未过期则直接使用
 		if !st.Expired(10 * time.Second) {
+			// 启动后台刷新（只要有 refresh_token）
+			if st.RefreshToken != "" {
+				runRefreshToken()
+			}
 			return nil
 		}
 
